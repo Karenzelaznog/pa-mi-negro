@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>La Aventura del Gran Tesoro</title>
+<link href="https://fonts.googleapis.com/css2?family=Pirata+One&family=IM+Fell+English&display=swap" rel="stylesheet">
+<style>
+:root{--card:#f4e4bd;--ink:#3b2a14;--red:#b5452b;--gold:#c8962b;--btn:#fff6dc}
+@media (prefers-color-scheme:dark){:root{--card:#2b2216;--ink:#f1e2bf;--btn:#3a2d1c}}
+*{box-sizing:border-box}
+html{background:#0e3a55}
+body{margin:0;height:100vh;overflow:hidden;font-family:'IM Fell English',Georgia,serif;color:var(--ink)}
+#bg{position:fixed;inset:0;z-index:-1;background:linear-gradient(#0002,#0005),url("img/fondo.jpg") center/cover no-repeat}
+/* Toda la escena vive en un lienzo de 1920x1080 que se escala a la pantalla */
+#scene{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0}
+#hud{position:absolute;top:50px;left:900px;width:920px;z-index:3;display:flex;align-items:center;gap:20px;color:var(--ink);font-size:36px}
+#bar{flex:1;height:18px;background:#0002;border-radius:10px;overflow:hidden;border:2px solid var(--gold)}
+#bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffd98a,#e8892b);transition:width .6s}
+#char{position:absolute;bottom:0;height:1020px;z-index:2;pointer-events:none}
+#char.l{left:-40px}#char.r{right:-40px}
+#char img{height:100%;width:auto;max-width:900px;object-fit:contain;object-position:bottom;display:block;filter:drop-shadow(0 8px 14px #0008)}
+#card{position:absolute;left:0;top:0;width:1920px;height:1080px;overflow-y:auto;display:flex;flex-direction:column;z-index:1;background:color-mix(in srgb,var(--card) 90%,transparent);border:10px double var(--gold);padding:60px 100px 60px 900px;animation:up .5s}
+#card>:first-child{margin-top:auto}#card>:last-child{margin-bottom:auto}
+/* el mapa mide 1920x1080; el texto se corre para dejar libre al personaje (l = izquierda, r = derecha) */
+.l #card{padding:60px 100px 60px 900px}.r #card{padding:60px 900px 60px 100px}.l #hud{left:900px}.r #hud{left:100px}
+@keyframes up{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+h2{font-family:'Pirata One',Georgia,serif;font-weight:normal;font-size:68px;margin:0 0 24px;color:var(--red);text-align:center}
+p{font-size:36px;line-height:1.5;margin:0 0 24px}p.nar{font-style:italic}
+p.say b{font-family:'Pirata One',Georgia,serif;font-weight:normal;color:var(--red);font-size:1.1em}
+.big{font-size:84px;text-align:center;letter-spacing:16px;margin:16px 0}
+.leg{display:flex;flex-wrap:wrap;gap:16px;justify-content:center;margin-bottom:24px}.leg span{border:2px solid var(--gold);border-radius:8px;padding:6px 20px;font-size:36px}
+button,input{font:inherit;font-size:34px;color:var(--ink)}
+button{display:block;width:100%;background:var(--btn);border:3px solid var(--gold);border-radius:16px;padding:20px 28px;margin-top:20px;cursor:pointer;text-align:left}
+button:hover{background:var(--gold);color:#fff}
+.row{display:flex;gap:16px}.row input{flex:1;min-width:0;background:var(--btn);border:3px solid var(--gold);border-radius:16px;padding:18px}
+.row button{width:auto;margin:0;text-align:center}
+.hint{color:var(--red);font-size:30px;margin-top:16px;min-height:40px}
+.shake{animation:sh .35s}@keyframes sh{25%{transform:translateX(-16px)}75%{transform:translateX(16px)}}
+.msg{white-space:pre-wrap;border:3px dashed var(--gold);border-radius:12px;padding:32px;background:var(--btn);line-height:1.6;margin:24px 0;font-size:34px}
+.ic{font-size:100px;text-align:center}
+</style></head><body>
+<div id="bg"></div><div id="scene"><div id="hud"><div id="bar"><i></i></div><div id="hr"></div></div><div id="char"></div><div id="card"></div></div>
+<script>
+const CAP="mi amor", NAV="Navegante"; // ← cambia aquí el nombre de él y el tuyo
+const MSG=`Capitán ${CAP}:
+
+Tú eres el tesoro por el cual me he aventurado en esta vida.
+Te amo como Luffy ama la carne, como Zoro ama sus katanas y como Robin ama la historia.
+Mientras estés vivo, tienes infinitas posibilidades... y yo quiero estar en todas.
+Por ti cruzaría el Grand Line.
+
+Para siempre tu navegante ♥`; // ← escribe aquí tu carta final
+// Personajes: la imagen debe estar en img/<clave>.png  (s = lado: l izquierda, r derecha)
+const CH={luffy:{n:"Luffy",e:"🍖",s:"l"},chopper:{n:"Chopper",e:"🦌",s:"r"},sanji:{n:"Sanji",e:"🍳",s:"l"},robin:{n:"Robin",e:"📚",s:"r"},nami:{n:"Nami",e:"🍊",s:"l"},zoro:{n:"Zoro",e:"🗡",s:"r"},usopp:{n:"Usopp",e:"🎯",s:"l"},brook:{n:"Brook",e:"🎻",s:"r"},jinbe:{n:"Jinbe",e:"🌊",s:"l"},ace:{n:"Ace",e:"🔥",s:"r"},shanks:{n:"Shanks",e:"🍶",s:"l"}};
+const HEARTS=5,NEED=4,TOTAL=10;
+const S={
+intro:{n:0,c:"luffy",t:"La Aventura del Gran Tesoro",l:[["","Un juego hecho para el capitán "+CAP+". Cada decisión cuenta... y no todos los tesoros brillan."],["@","¡Shishishi! ¡Vamos a por el One Piece!"]],ch:[["⚓ Zarpar","s1"]]},
+s1:{n:0,c:"luffy",l:[["","El sol sale sobre el Grand Line. A bordo de «El Tesoro Mío», el capitán "+CAP+" despierta con un rugido... que viene de su estómago."],[NAV,"¡Capitán! El Log Pose apunta a una isla, pero la despensa está vacía. ¿Qué hacemos?"]],ch:[["🍖 ¡Desayuno primero!","s1b"],["🧭 Zarpar ya hacia la isla","i1"],["🍎 Comer esa fruta rara que flota junto al barco","fin1"]]},
+s1b:{n:0,c:"luffy",l:[["","Devoras lo último que quedaba. La navegante te mira con los brazos cruzados... y aun así sonríe."],[NAV,"Eres imposible. Menos mal que guardé una porción para mí. ¿La compartimos?"]],ch:[["💛 Compartirla con ella","i1",1],["😋 «Yo la necesito más»","i1"]]},
+i1:{n:1,c:"chopper",t:"Isla Banquete",l:[["","Un pequeño reno con sombrero rosa te cierra el paso."],["@","¡Nadie pasa sin resolver mi acertijo! «Soy dulce y esponjoso, parezco una nube y a un reno doctor le encanto. ¿Qué soy?»"]],q:{a:["algodon"],hint:"Pista: es rosa... y Chopper lo adora.",ok:"i2",ph:"Tu respuesta..."}},
+i2:{n:2,c:"sanji",l:[["","La puerta se abre: ¡una mesa interminable de comida!"],["@","Una dama merece ser servida primero. ¿Qué pedimos, capitán?"]],ch:[["💛 Un banquete para dos","i3",1],["🍖 Carne solo para ti","i3"]]},
+i3:{n:3,c:"robin",t:"Isla Ruinas",l:[["","En el centro, una piedra negra cubierta de símbolos antiguos."],["@","Fufufu... este fragmento de mis notas explica cómo leerla. ¿Puedes descifrarla?"]],html:'<div class="big">☠ ⚓ ☾ ⚓ ✦ ⚓</div><div class="leg"><span>⚓ = A</span><span>♜ = D</span><span>☠ = N</span><span>❖ = L</span><span>✦ = M</span><span>☾ = K</span></div>',q:{a:["nakama"],hint:"Pista: lee símbolo por símbolo. Es lo que son todos en una tripulación.",ok:"i3b",ph:"La piedra dice..."}},
+i3b:{n:3,c:"robin",l:[["","La piedra brilla y una voz antigua susurra: «El mayor tesoro no está al final del mar: es quien navega a tu lado.»"],["@","Interesante... ¿a quién se lo dedicas?"]],ch:[["💛 A la navegante","i4",1],["😎 «¡Lo descifré yo solo!»","i4"]]},
+i4:{n:4,c:"nami",t:"Isla del Dinero",l:[["","Una navegante de pelo naranja te frena con una sonrisa peligrosa."],["@","Te presto 1000 berries con un interés del 10 % diario. Si no pagas hoy, ¿cuánto me debes mañana?"]],q:{a:["1100"],hint:"Pista: 1000 más el 10 % de 1000.",ok:"i5",ph:"Berries...",num:1}},
+i5:{n:5,c:"zoro",t:"El bosque sin caminos",l:[["","El bosque es un laberinto. Un espadachín de pelo verde se ofrece..."],["@","Yo los guío. Es por allá. Creo."]],ch:[["🧭 Seguir el mapa de la navegante","i6",1],["🗡 «Zoro, guíanos»","i5b"]]},
+i5b:{n:5,c:"zoro",l:[["","Tras una hora caminando, vuelven al mismo punto de partida."],["@","...El bosque se movió."]],ch:[["🧭 Mejor el mapa de la navegante","i6"]]},
+i6:{n:6,c:"usopp",t:"Isla de las Mentiras",l:[["","Un francotirador de nariz larga te mira con aire de héroe."],["@","¡Soy el gran capitán Usopp! Solo una de estas frases es verdad. ¿Cuál?"]],ch:[["«Derroté yo solo a 8000 piratas»","",0,"¡Mentira mía, jaja! Casi nadie me cree... inténtalo de nuevo."],["«Las naranjas de Nami vuelan»","",0,"Eso suena bonito, pero no. ¡Otra vez!"],["«Luffy comió una fruta que le hizo el cuerpo de goma»","i7"]]},
+i7:{n:7,c:"brook",t:"Isla de la Música",l:[["","Un esqueleto con peinado afro te saluda con una reverencia."],["@","Yohohoho. Adivina quién soy: esqueleto, toco el violín y no tengo piel... ¡ni nada que enseñar!"]],q:{a:["brook"],hint:"Pista: su risa es «Yohohoho».",ok:"i8",ph:"Mi nombre es..."}},
+i8:{n:8,c:"jinbe",t:"Isla Tormenta",l:[["","Cielo negro, olas gigantes y rayos por todas partes."],[NAV,"Capitán... esta tormenta es enorme."],["@","El mar está furioso. El timón es tuyo, capitán."]],ch:[["💛 «Tranquila, yo llevo el timón. Estás a salvo»","i9",1],["🤣 «¡Más rápido! ¡Me encantan las tormentas!»","i9"]]},
+i9:{n:9,c:"ace",t:"La puerta de hierro",l:[["","Una puerta con cerradura de dos cifras, y alguien muy sonriente la custodia."],["@","«Las espadas de un espadachín que pelea con tres... y los hermanos de sangre juramentados. Un dígito junto al otro.»"]],q:{a:["33"],hint:"Pista: las katanas de Zoro y los hermanos Luffy, Ace y Sabo.",ok:"i10",ph:"Código de 2 cifras",num:1}},
+i10:{n:10,c:"shanks",t:"El cofre del tesoro",l:[["","La puerta da a una cueva con luz dorada. En el centro, el cofre más codiciado del mundo, sellado."],["@","Este cofre solo se abre con algo que no se compra. Mira cuántos fragmentos de corazón juntaste."]],ch:[["🗝 Abrir el cofre","END"]]},
+fin1:{n:0,c:"luffy",e:1,ic:"🍎",t:"Final: ¡Glup glup!",l:[["","Era una fruta del diablo... de las que te quitan el nado. Saltaste a celebrar y te hundiste como yunque. La navegante te rescata mientras se ríe a carcajadas."]]},
+endN:{n:10,c:"shanks",e:1,ic:"💰",t:"Final: Rey de los piratas",l:[["","El cofre se abre: ¡berries y joyas hasta el techo! Eres rico... pero la navegante sonríe."],[NAV,"Creo que existe un final más bonito. Fíjate mejor en tus fragmentos de corazón..."]]},
+endS:{n:10,c:"shanks",e:1,ic:"💛",t:"Final secreto: El mayor tesoro",l:[["","El cofre brilla con una luz cálida. Dentro no hay oro: hay una carta."]],msg:1}
+};
+let H=0,tries=0;const $=id=>document.getElementById(id);
+const norm=s=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
+function ph(img,k){const d=document.createElement('div');d.className='ph';d.innerHTML=`<span>${CH[k].e}</span>Pon tu imagen en<br>img/${k}.png`;img.replaceWith(d)}
+function go(k,heart){if(heart)H++;tries=0;if(k=="END")k=H>=NEED?"endS":"endN";show(k)}
+function show(k){
+ const s=S[k],c=CH[s.c];
+ $('bar').firstChild.style.width=(s.n/TOTAL*100)+'%';$('hr').textContent="💛".repeat(H)+"🤍".repeat(HEARTS-H);
+ $('char').className=$('scene').className=c.s;
+ $('char').innerHTML=`<img src="img/${s.c}.png" alt="" onerror="this.remove()">`;
+ let h=s.ic?`<div class="ic">${s.ic}</div>`:'';
+ if(s.t)h+=`<h2>${s.t}</h2>`;
+ s.l.forEach(([w,t])=>{const q=w=="@";if(q)w="";h+=`<p class="${w||q?'say':'nar'}">${w?`<b>${w}:</b> `:''}${t}</p>`});
+ if(s.msg)h+=`<div class="msg">${MSG}</div>`;
+ if(s.html)h+=s.html;
+ if(s.q)h+=`<div class="row"><input id="in" ${s.q.num?'inputmode="numeric"':''} placeholder="${s.q.ph}" autocomplete="off"><button id="ok">Responder</button></div>`;
+ h+='<div class="hint" id="ht"></div>';
+ if(s.ch)s.ch.forEach((x,i)=>h+=`<button data-i="${i}">${x[0]}</button>`);
+ if(s.e)h+=`<button id="re">↻ Jugar de nuevo</button>`;
+ const d=$('card');d.style.animation='none';d.offsetHeight;d.style.animation='';d.innerHTML=h;scrollTo(0,0);
+ d.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>{const x=s.ch[+b.dataset.i];if(x[3])$('ht').textContent=x[3];else go(x[1],x[2])});
+ if(s.e)$('re').onclick=()=>{H=0;show('intro')};
+ if(s.q){const chk=()=>{const v=norm($('in').value);if(v&&s.q.a.some(a=>v.includes(norm(a))))go(s.q.ok);else{tries++;const r=$('in').parentNode;r.classList.remove('shake');r.offsetHeight;r.classList.add('shake');$('ht').textContent=tries>=2?s.q.hint:"Mmm, ese no es. ¡Inténtalo otra vez, capitán!"}};
+  $('ok').onclick=chk;$('in').onkeydown=e=>{if(e.key=='Enter')chk()}}
+}
+function fit(){const k=Math.min(innerWidth/1920,innerHeight/1080);$('scene').style.transform=`translate(${(innerWidth-1920*k)/2}px,${(innerHeight-1080*k)/2}px) scale(${k})`}
+addEventListener('resize',fit);fit();
+show('intro');
+</script></body></html>
